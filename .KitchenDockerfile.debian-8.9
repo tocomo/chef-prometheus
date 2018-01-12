@@ -1,0 +1,24 @@
+FROM debian:8.9
+ENV DEBIAN_FRONTEND noninteractive
+RUN apt-get upgrade -yy
+RUN apt-get update  -y --fix-missing
+RUN apt-get install -yy sudo lsb-release openssh-client openssh-server ufw htop mc vim nano wget curl gnupg2 vnstat git make tcpdump postfix bsd-mailx figlet toilet tree inotify-tools logwatch fail2ban apt-transport-https unattended-upgrades ca-certificates software-properties-common iptraf iftop bmon slurm tcptrack tcpdump
+
+RUN cp /bin/true /sbin/agetty
+
+#RUN rm -rf /etc/systemd/system/getty.target.wants/getty@tty*.service
+RUN rm -f /etc/ssh/ssh_host_rsa_key && ssh-keygen -t rsa -f /etc/ssh/ssh_host_rsa_key
+RUN rm -f /etc/ssh/ssh_host_dsa_key && ssh-keygen -t dsa -f /etc/ssh/ssh_host_dsa_key
+RUN mkdir -p /var/run/sshd
+RUN useradd -d /home/<%= @username %> -m -s /bin/bash <%= @username %>
+#RUN echo <%= "#{@username}:#{@password}" %> | chpasswd
+RUN echo 'kitchen ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers.d/allow
+RUN mkdir -p /home/<%= @username %>/.ssh
+RUN chown -R <%= @username %> /home/<%= @username %>/.ssh
+RUN chmod 0700 /home/<%= @username %>/.ssh
+RUN touch /home/<%= @username %>/.ssh/authorized_keys
+RUN chown <%= @username %> /home/<%= @username %>/.ssh/authorized_keys
+RUN chmod 0600 /home/<%= @username %>/.ssh/authorized_keys
+RUN echo '<%= IO.read(@public_key).strip %>' >> /home/<%= @username %>/.ssh/authorized_keys
+RUN echo 'export TERM=xterm' >> /etc/bash.bashrc
+RUN curl -L https://www.chef.io/chef/install.sh | bash

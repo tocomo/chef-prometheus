@@ -1,23 +1,26 @@
 driver:
-  name: vagrant
+  name: docker
+  use_sudo: false
+  privileged: true
+  run_command: /sbin/init
 
 provisioner:
   name: chef_zero
   data_path: test/shared
 
+verifier:
+  name: inspec
+
 platforms:
-  - name: ubuntu-14.04
   - name: ubuntu-16.04
-  - name: debian-7.11
-    driver:
-      cache_directory: false
-  - name: debian-8.7
-  - name: centos-6.9
-    run_list:
-      - recipe[yum::default]
-  - name: centos-7.3
-    run_list:
-      - recipe[yum::default]
+    driver_config:
+      dockerfile: .KitchenDockerfile.ubuntu-16.04
+  - name: debian-8.9
+    driver_config:
+      dockerfile: .KitchenDockerfile.debian-8.9
+  #- name: centos-7.3
+  #  run_list:
+  #    - recipe[yum::default]
 
 suites:
   - name: default
@@ -29,47 +32,3 @@ suites:
         install_method: 'binary'
         alertmanager:
           install_method: 'binary'
-
-  - name: init-binary
-    run_list:
-        - recipe[prometheus::default]
-    attributes:
-      prometheus:
-        init_style: 'init'
-        install_method: 'binary'
-        flags:
-          storage.remote.timeout: 45s
-
-  - name: default-source
-    run_list:
-        - recipe[prometheus::default]
-    attributes:
-      go:
-        gobin: '/usr/local/go/bin'
-        gopath: '/usr/local/go'
-
-  - name: init
-    run_list:
-        - recipe[prometheus::default]
-    provisioner:
-        name: chef_zero
-        require_chef_omnibus: 11.12.4
-    attributes:
-      prometheus:
-        init_style: 'init'
-
-#  - name: bluepill
-#    run_list:
-#        - recipe[prometheus::default]
-#    attributes:
-#      prometheus:
-#        init_style: 'bluepill'
-
-#  - name: bluepill-binary
-#    run_list:
-#        - recipe[prometheus::default]
-#    attributes:
-#      prometheus:
-#        init_style: 'bluepill'
-#        install_method: 'binary'
-

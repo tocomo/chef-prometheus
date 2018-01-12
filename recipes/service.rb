@@ -15,73 +15,32 @@
 # limitations under the License.
 #
 
-case node['prometheus']['init_style']
-when 'runit'
-  include_recipe 'runit::default'
+dist_dir, conf_dir, env_file = value_for_platform_family(
+  ['fedora'] => %w[fedora sysconfig prometheus],
+  ['rhel'] => %w[redhat sysconfig prometheus],
+  ['debian'] => %w[debian default prometheus]
+)
 
-  runit_service 'prometheus' do
-    default_logger true
-  end
-when 'bluepill'
-  include_recipe 'bluepill::default'
-
-  template "#{node['bluepill']['conf_dir']}/prometheus.pill" do
-    source 'prometheus.pill.erb'
-    mode '0644'
-  end
-
-  bluepill_service 'prometheus' do
-    action [:enable, :load]
-  end
-when 'systemd'
-  # rubocop:disable Style/HashSyntax
-  dist_dir, conf_dir, env_file = value_for_platform_family(
-    ['fedora'] => %w(fedora sysconfig prometheus),
-    ['rhel'] => %w(redhat sysconfig prometheus),
-    ['debian'] => %w(debian default prometheus)
-  )
-
-  template '/etc/systemd/system/prometheus.service' do
-    source 'systemd/prometheus.service.erb'
-    mode '0644'
-    variables(:sysconfig_file => "/etc/#{conf_dir}/#{env_file}")
-    notifies :restart, 'service[prometheus]', :delayed
-  end
-
-  template "/etc/#{conf_dir}/#{env_file}" do
-    source "#{dist_dir}/#{conf_dir}/prometheus.erb"
-    mode '0644'
-    notifies :restart, 'service[prometheus]', :delayed
-  end
-
-  service 'prometheus' do
-    supports :status => true, :restart => true
-    action [:enable, :start]
-  end
-  # rubocop:enable Style/HashSyntax
-when 'upstart'
-  template '/etc/init/prometheus.conf' do
-    source 'upstart/prometheus.service.erb'
-    mode '0644'
-    notifies :restart, 'service[prometheus]', :delayed
-  end
-
-  service 'prometheus' do
-    provider Chef::Provider::Service::Upstart
-    action [:enable, :start]
-  end
-else
-  template '/etc/init.d/prometheus' do
-    source 'prometheus.erb'
-    owner 'root'
-    group node['root_group']
-    mode '0755'
-    notifies :restart, 'service[prometheus]', :delayed
-  end
+template '/etc/systemd/system/prometheus.service' do
+  source 'systemd/prometheus.service.erb'
+  mode '0644'
+  variables(sysconfig_file: "/etc/#{conf_dir}/#{env_file}")
+  notifies :run, 'execute[systemctl daemon-reload]', :immediately
+  notifies :restart, 'service[prometheus]', :delayed
 end
 
-# rubocop:disable Style/HashSyntax
+template "/etc/#{conf_dir}/#{env_file}" do
+  source "#{dist_dir}/#{conf_dir}/prometheus.erb"
+  mode '0644'
+  notifies :restart, 'service[prometheus]', :delayed
+end
+
+execute 'systemctl daemon-reload' do
+  command '/bin/systemctl daemon-reload'
+  action :nothing
+end
+
 service 'prometheus' do
-  supports :status => true, :restart => true, :reload => true
+  supports status: true, restart: true
+  action [:enable, :start]
 end
-# rubocop:enable Style/HashSyntax

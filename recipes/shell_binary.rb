@@ -30,8 +30,8 @@ end
 
 bash 'install_prometheus' do
   code <<-EOH
-    mkdir -p "#{node['prometheus']['dir']}"
-    tar -xzf "#{Chef::Config[:file_cache_path]}/prometheus-#{node['prometheus']['version']}.tar.gz" -C "#{node['prometheus']['dir']}" --strip-components=1
+    mkdir -p "/usr/local/prometheus"
+    tar -xzf "#{Chef::Config[:file_cache_path]}/prometheus-#{node['prometheus']['version']}.tar.gz" -C "/usr/local/prometheus" --strip-components=1
   EOH
   user     'root'
   group    'root'

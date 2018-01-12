@@ -1,8 +1,8 @@
 # Global default settings.
 global:
-  <%node['prometheus']['global'].each do |k,v|%>
-  <%=k%>: "<%=v%>"
-  <%end%>
+  <% node['prometheus']['global'].each do |k,v| %>
+  <%= k %>: "<%= v %>"
+  <% end %>
 
 scrape_configs:
 <% @jobs.each do |name, job| %>
@@ -22,13 +22,9 @@ scrape_configs:
         <%=label%>: <%=label_config%>
       <%end%>
     <%end%>
+<% end %>
 
-  <% end %>
-
-<% if @rule_filenames %>
 rule_files:
-<% @rule_filenames.each do |filename| %>
+  <% @rule_filenames.each do |filename| %>
   - <%= filename %>
-<% end %>
-<% end %>
-
+  <% end %>

@@ -16,19 +16,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 user node['prometheus']['user'] do
   system true
   shell '/bin/false'
-  home node['prometheus']['dir']
+  home '/var/lib/prometheus'
   not_if { node['prometheus']['use_existing_user'] == true || node['prometheus']['user'] == 'root' }
 end
 
-directory node['prometheus']['dir'] do
-  owner node['prometheus']['user']
-  group node['prometheus']['group']
-  mode '0755'
-  recursive true
-end
+
+directory '/etc/prometheus'
 
 directory node['prometheus']['log_dir'] do
   owner node['prometheus']['user']
@@ -37,39 +34,34 @@ directory node['prometheus']['log_dir'] do
   recursive true
 end
 
-directory node['prometheus']['flags']['storage.local.path'] do
+directory node['prometheus']['cli_opts']['storage.tsdb.path'] do
   owner node['prometheus']['user']
   group node['prometheus']['group']
   mode '0755'
   recursive true
 end
 
-apt_update 'please'
-# Ensure that any unpacking of prometheus doesn't blow away our own configuration
-include_recipe "prometheus::#{node['prometheus']['install_method']}"
+include_recipe 'ark::default'
 
-# -- Write our Config -- #
+%w(curl tar bzip2).each do |pkg|
+  package pkg
+end
 
-template node['prometheus']['flags']['config.file'] do
-  action    :nothing
-  cookbook  node['prometheus']['job_config_cookbook_name']
+ark 'prometheus' do
+  url node['prometheus']['binary_url']
+  checksum node['prometheus']['checksum']
+  version node['prometheus']['version']
+  action :put
+end
+
+
+template '/etc/prometheus/prometheus.yml' do
   source    node['prometheus']['job_config_template_name']
   mode      '0644'
-  owner     node['prometheus']['user']
-  group     node['prometheus']['group']
   variables(
     rule_filenames: node['prometheus']['rule_filenames']
   )
   notifies  :reload, 'service[prometheus]'
 end
-
-# monitor our server instance
-prometheus_job 'prometheus' do
-  scrape_interval   '15s'
-  target            "localhost#{node['prometheus']['flags']['web.listen-address']}"
-  metrics_path      node['prometheus']['flags']['web.telemetry-path']
-end
-
-# -- Do the install -- #
 
 include_recipe 'prometheus::service'

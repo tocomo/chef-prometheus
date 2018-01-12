@@ -1,10 +1,9 @@
 prometheus Cookbook
 =====================
-[![Cookbook](http://img.shields.io/cookbook/v/prometheus.svg)](https://github.com/rayrod2030/chef-prometheus)
-[![Build Status](https://travis-ci.org/rayrod2030/chef-prometheus.svg?branch=master)](https://travis-ci.org/rayrod2030/chef-prometheus?branch=master)
-[![Gitter chat](https://img.shields.io/badge/Gitter-rayrod2030%2Fchef--prometheus-brightgreen.svg)](https://gitter.im/rayrod2030/chef-prometheus)
 
-This cookbook installs the [Prometheus][] monitoring system and time-series database.
+This cookbook installs the [Prometheus][] Version 2.X monitoring daemon using a time-series database.
+
+
 
 Requirements
 ------------
@@ -15,11 +14,12 @@ Platform
 --------
 Tested on
 
-* Ubuntu 14.04
-* Ubuntu 12.04
-* Debian 7.7
-* Centos 6.6
-* Centos 7.0
+* Ubuntu 16.04
+* Debian 8.9
+
+untested but supported (that means i will fix it)
+ * redhat/centos with systemd
+
 
 Attributes
 ----------
@@ -35,56 +35,55 @@ The `default` recipe installs creates all the default [Prometheus][] directories
 config files and and users.  Default also calls the configured `install_method`
 recipe and finally calls the prometheus `service` recipe.
 
-### source
-The `source` recipe builds Prometheus from a Github source tag.
-
-### binary
-The `binary` recipe retrieves and installs a pre-compiled Prometheus build from
-a user-defined location.
-
-### service
-The `service` recipe configures Prometheus to run under a process supervisor.
-Default supervisors are chosen based on distribution. Currently supported
-supervisors are init, runit, systemd, upstart and bluepill.
 
 Resource/Provider
 -----------------
 
 ### prometheus_job
-
-This resource adds a job definition to the Prometheus config file.  Here is an
-example of using this resource to define the default Prometheus job:
+This resource adds a job definition to the Prometheus config file.
 
 ```ruby
 prometheus_job 'prometheus' do
-  scrape_interval   '15s'
-  target            "http://localhost#{node['prometheus']['flags']['web.listen-address']}#{node['prometheus']['flags']['web.telemetry-path']}"
+  scrape_interval '15s'
+  target "http://localhost:8080"
 end
 ```
 
-Note: This cookbook uses the accumulator pattern so you can define multiple
-prometheus_job’s and they will all be added to the Prometheus config.
+### prometheus_alert
+This resource adds a alert definition.
 
-Externally managing `prometheus.conf`
--------------------------------------
+```ruby
+prometheus_alert 'prometheus' do
+  group  'default'
+  name 'broken query'
+  rules {
+    'response codes': {
+      expr: 'rate(http_requests_total{code!='200'}[1m]) > 0',
+      for: '10m',
+      labels: {
+        severity: 'minor'
+      },
+      annotations: {
+        summary: 'non 200 response codes'
+      },
+    }
+  }
+end
+```
 
-If you prefer to manage your `prometheus.conf` file externally using your own
-inventory or service discovery mechanism you can set
-`default['prometheus']['allow_external_config']` to `true`.
+Note: These cookbooks ar using the accumulator pattern so you can define multiple
+prometheus_job's and they will all be added to the Prometheus config.
+
 
 Dependencies
 ------------
 
 The following cookbooks are dependencies:
 
-* [build-essential][]
 * [apt][]
 * [yum][]
-* [runit][]
-* [bluepill][]
 * [accumulator][]
 * [ark][]
-
 
 ## Usage
 
@@ -102,7 +101,7 @@ Include `prometheus` in your node's `run_list` to execute the standard deploymen
 
 ### prometheus::use_lwrp
 
-Used to load promethus cookbook from wrapper cookbook.
+Used to load prometheus cookbook from wrapper cookbook.
 
 `prometheus::use_lwrp` doesn't do anything other than allow you to include the
 Prometheus cookbook into your wrapper or app cookbooks. Doing this allows you to
@@ -110,12 +109,9 @@ override prometheus attributes and use the prometheus LWRP (`prometheus_job`) in
 your wrapper cookbooks.
 
 ```ruby
-# Load the promethues cookbook into your wrapper so you have access to the LWRP and attributes
+# Load the prometheus cookbook into your wrapper so you have access to the LWRP and attributes
 
 include_recipe "prometheus::use_lwrp"
-
-# Add a rule filename under `rule_files` in prometheus.yml.erb
-node.set['prometheus']['rule_filenames'] = ["#{node['prometheus']['dir']}/alert.rules"]
 
 # Example of using search to populate prometheus.yaml jobs using the prometheus_job LWRP
 # Finds all the instances that are in the current environment and are taged with "node_exporter"
@@ -125,14 +121,14 @@ client_servers = search(:node, "environment:#{node.chef_environment} AND tags:no
 # Assumes service_name is an attribute of each node
 client_servers.each do |server|
 	prometheus_job server.service_name do
-  	  scrape_interval   ‘15s’
-	  target            “#{server.fqdn}#{node[‘prometheus’][‘flags’][‘web.listen-address’]}"
-	  metrics_path       "#{node[‘prometheus’][‘flags’][‘web.telemetry-path’]}”
+ 	  scrape_interval   '15s'
+	  target            "#{server.fqdn}#{node['prometheus']['flags']['web.listen-address']}"
+	  metrics_path       "#{node['prometheus']['web.telemetry-path']}"
 	end
 end
 
 # Now run the default recipe that does all the work configuring and deploying prometheus
-include_recipe "prometheus::default"
+include_recipe 'prometheus::default'
 ```
 
 Development
@@ -144,6 +140,7 @@ License & Authors
 
 - Author: Ray Rodriguez <rayrod2030@gmail.com>
 - Author: kristian järvenpää <kristian.jarvenpaa@gmail.com>
+- Author: Tobias Strauß <tac@gmx.li>
 
 ```text
 Licensed under the Apache License, Version 2.0 (the “License”);
@@ -159,11 +156,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ```
 
-[build-essential]: https://github.com/opscode-cookbooks/build-essential
 [apt]: https://github.com/opscode-cookbooks/apt
-[runit]: https://github.com/hw-cookbooks/runit
 [Prometheus]: https://github.com/prometheus/prometheus
-[bluepill]: https://github.com/opscode-cookbooks/bluepill
 [ark]: https://github.com/burtlo/ark
 [yum]: https://github.com/chef-cookbooks/yum
 [accumulator]: https://github.com/kisoku/chef-accumulator

@@ -1,0 +1,18 @@
+groups:
+<% @alerts.each do |gname, rules| %>
+- name: <%= gname %>
+  rules:
+  <% rules.each do |aname, alert| %>
+  - alert: <%= aname %>
+    expr: <%= alert['expr'] %>
+    for: <%= alert['for'] %>
+    annotations:
+      <% alert['annotations'].each do |key, value| %>
+      <%= key %>: <%= value %>
+      <% end %>
+    labels:
+      <% alert['labels'].each do |key, value| %>
+      <%= key %>: <%= value %>
+      <% end %>
+  <% end %>
+<% end %>
